@@ -10,32 +10,33 @@
   <div class="login-box">
     <h2>Login</h2>
 
-    <% if (typeof error !== 'undefined' && error) { %>
-      <p class="error-message"><%= error %></p>
-    <% } %>
-
     <form method="POST" action="/login">
-      <label for="username">Username</label>
+      <label for="nik">NIK: </label>
       <input
         type="text"
-        id="username"
-        name="username"
-        placeholder="Enter your username"
+        id="nik"
+        name="nik"
+        placeholder="Enter your NIK"
         required
         autofocus
       >
 
-      <label for="password">Password</label>
+      <label for="pass">Password: </label>
       <input
         type="password"
-        id="password"
-        name="password"
+        id="pass"
+        name="pass"
         placeholder="Enter your password"
         required
       >
 
       <button type="submit">Log In</button>
     </form>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <p class="error-message"><%= error %></p>
+    <% } %>
+
   </div>
 </body>
 </html>
