@@ -21,66 +21,52 @@ app.get('/', (req, res) => {
   res.redirect('/login');
 });
 
-app.get('/login', (req, res) => {
-  res.render('login', { error: null });
-});
-
 app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
+  const { nik, pass } = req.body;
 
   try {
     const response = await axios.post(
       process.env.AUTH_API_URL,
-      { username, password },
+      { user: { nik, pass } },
       {
         headers: { 'Content-Type': 'application/json' }
       }
     );
 
-    console.log('Raw API response:', JSON.stringify(response.data, null, 2)); // ADD THIS TEMPORARILY
-
     const result = response.data.LoginESS_V2Result; // get API response result
 
     if (result === 'Sukses') {
       req.session.loggedIn = true;
-      req.session.username = username;
-      return res.redirect('/dashboard'); // redirect
+      req.session.username = nik;
+      return res.redirect('/dashboard'); // change to redirect to publisher/Qlik
+    } else {
+      // console.log(result); // delete
+      req.session.loginError = result;
+      return res.redirect('/login');
     }
 
-    // Handle "try again (n/3)" pattern
-    if (result.startsWith('Username / password tidak sesuai')) {
-      const insideParens = result.split('('[1]?.replace(')', ''));
-      const [attempt, max] = insideParens.split('/').map(Number);
-
-      if (attempt >= max) {
-        const word = "menunggu";
-        const regex = new RegExp('${word}\\s+(\\w+)', i);
-        const minutesLocked = result.match(regex);
-
-        return res.render('login', {
-          error: 'Account locked after too many failed attempts. Please try again in {minutesLocked}.'
-        });
-      }
-
-      return res.render('login', {
-        error: `Incorrect credentials. Attempt ${attempt} of ${max}.`
-      });
-    }
-
-    // Fallback for any unexpected response string
-    return res.render('login', { error: 'Login failed. Please try again.' });
+    req.session.loginError = 'Login gagal. Mohon coba lagi.';
+    return res.redirect('/login');
 
   } catch (err) {
     console.error('Auth API error:', err.message);
-    res.render('login', { error: 'Authentication service is unavailable. Try again later.' });
+    req.session.loginError = 'Authentication service is unavailable. Try again later.';
+    return res.redirect('/login');
   }
+});
+
+app.get('/login', (req, res) => {
+  console.log('Session on GET /login:', req.session); // delete
+  const error = req.session.loginError || null;
+  req.session.loginError = null; // clear after showing once
+  res.render('login', { error });
 });
 
 app.get('/dashboard', (req, res) => {
   if (!req.session.loggedIn) {
     return res.redirect('/login');
   }
-  res.render('dashboard', { username: req.session.username });
+  res.render('dashboard', { nik: req.session.nik });
 });
 
 app.get('/logout', (req, res) => {
