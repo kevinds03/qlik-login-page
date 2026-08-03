@@ -17,6 +17,12 @@ app.use(session({
 
 const AUTH_API_URL = process.env.AUTH_API_URL;
 
+const oidc = require('./oidc');
+
+app.set('trust proxy', true);
+
+app.use('/oidc', oidc.callback);
+
 app.get('/', (req, res) => {
   res.redirect('/login');
 });
