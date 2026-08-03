@@ -10,13 +10,13 @@
   <div class="login-box">
     <h2>Login</h2>
 
-    <form method="POST" action="/login">
+    <form method="POST" action="<%= typeof uid !== 'undefined' && uid ? `/interaction/${uid}/login` : '/login' %>">
       <label for="nik">NIK: </label>
       <input
         type="text"
         id="nik"
         name="nik"
-        placeholder="Enter your NIK"
+        placeholder="Input NIK"
         required
         autofocus
       >
@@ -26,17 +26,17 @@
         type="password"
         id="pass"
         name="pass"
-        placeholder="Enter your password"
+        placeholder="Masukkan password"
         required
       >
 
       <button type="submit">Log In</button>
-    </form>
+    </form> 
+  </div>
 
     <% if (typeof error !== 'undefined' && error) { %>
       <p class="error-message"><%= error %></p>
     <% } %>
 
-  </div>
 </body>
 </html>
