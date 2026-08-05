@@ -1,16 +1,27 @@
 body {
-  font-family: sans-serif;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: #f4f4f4;
+  background-color: #f4f4f4;
+}
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .login-box {
   background: white;
   padding: 30px;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+#header {
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+.label {
+  font-weight: 400;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
 input {
   display: block;
@@ -26,8 +37,9 @@ button {
   border: 0px;
 }
 button:hover {
-    cursor: pointer;
+  cursor: pointer;
 }
 .error-message {
-    color: red;
+  display: block;
+  color: red;
 }
