@@ -5,38 +5,38 @@ const { getUserWithAccess } = require('./db');
 const configuration = {
     clients: [
         {
-            client_id: 'qliksense',
+            client_id: process.env.QLIKSENSE_CLIENT_ID || 'qliksense',
             client_secret: process.env.QLIKSENSE_SECRET,
-            redirect_uris: ['https://qliksense/'],
-            post_logout_redirect_uris: ['https://yourtenant.us.qlikcloud.com/logged-out'],
-            frontchannel_logout_uri: 'https://yourtenant.us.qlikcloud.com/oidc-logout', // if QlikCloud supports it
+            redirect_uris: [process.env.QLIKSENSE_REDIRECT_URI],
+            post_logout_redirect_uris: [QLIKSENSE_LOGOUT_REDIRECT_URI],
+            // frontchannel_logout_uri: QLIKSENSE_FRONTCHANNEL_LOGOUT_URI, // if QlikSense supports it
             grant_types: ['authorization_code'],
             response_types:['code'], 
         },
         {
-            client_id: 'qlikcloud',
+            client_id: QLIKCLOUD_CLIENT_ID || 'qlikcloud',
             client_secret: process.env.QLIKCLOUD_SECRET,
-            redirect_uris: ['https://qlikcloud/'],
-            post_logout_redirect_uris: ['https://yourtenant.us.qlikcloud.com/logged-out'],
-            frontchannel_logout_uri: 'https://yourtenant.us.qlikcloud.com/oidc-logout', // if QlikCloud supports it
+            redirect_uris: [QLIKCLOUD_REDIRECT_URI],
+            post_logout_redirect_uris: [QLIKCLOUD_LOGOUT_REDIRECT_URI],
+            // frontchannel_logout_uri: QLIKCLOUD_FRONTCHANNEL_LOGOUT_URI, // if QlikCloud supports it
             grant_types: ['authorization_code'],
             response_types:['code'],
         },
         {
-            client_id: 'usermanage',
+            client_id: USERMANAGE_CLIENT_ID || 'usermanage',
             client_secret: process.env.USERMANAGE_SECRET,
-            redirect_uris: ['https://usermgt/'], // seusaikan link
-            post_logout_redirect_uris: ['https://yourtenant.us.qlikcloud.com/logged-out'],
-            frontchannel_logout_uri: 'https://yourtenant.us.qlikcloud.com/oidc-logout', // if QlikCloud supports it
+            redirect_uris: [USERMANAGE_REDIRECT_URI], // seusaikan link
+            post_logout_redirect_uris: [USERMANAGE_LOGOUT_REDIRECT_URI],
+            // frontchannel_logout_uri: USERMANAGE_FRONTCHANNEL_LOGOUT_URI, // if QlikCloud supports it
             grant_types: ['authorization_code'],
             response_types:['code'], 
         },
         {
-            client_id: 'publisher',
+            client_id: PUBLISHER_CLIENT_ID || 'publisher',
             client_secret: process.env.PUBLISHER_SECRET,
-            redirect_uris: ['https://publisher/'], // seusaikan link
-            post_logout_redirect_uris: ['https://yourtenant.us.qlikcloud.com/logged-out'],
-            frontchannel_logout_uri: 'https://yourtenant.us.qlikcloud.com/oidc-logout', // if QlikCloud supports it
+            redirect_uris: [PUBLISHER_REDIRECT_URI], // seusaikan link
+            post_logout_redirect_uris: [PUBLISHER_LOGOUT_REDIRECT_URI],
+            // frontchannel_logout_uri: PUBLISHER_FRONTCHANNEL_LOGOUT_URI, // if QlikCloud supports it
             grant_types: ['authorization_code'],
             response_types:['code'], 
         }
