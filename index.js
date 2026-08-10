@@ -5,6 +5,7 @@ const session = require('express-session');
 const axios = require('axios');
 
 const oidc = require('./oidc');
+const { consoleLog } = require('@ngrok/ngrok');
 
 const app = express();
 
@@ -20,7 +21,7 @@ app.use(session({
   saveUninitialized: false
 }));
 
-app.use('/oidc', oidc.callback);
+app.use('/oidc', oidc.callback());
 
 app.get('/', (req, res) => {
   res.redirect('/login');
@@ -41,6 +42,7 @@ app.post('/login', async (req, res) => {
     if (result === 'Sukses') {
       req.session.loggedIn = true;
       req.session.username = nik;
+
       return res.redirect('/dashboard'); // change to redirect to publisher/Qlik
     } else {
       // console.log(result); // delete
