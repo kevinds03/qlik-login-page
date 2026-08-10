@@ -70,7 +70,7 @@ const configuration = {
         };
     },
     features: {
-        frontchannelLogout: { enabled: true },
+        backchannelLogout: { enabled: true },
         rpInitiatedLogout: { enabled: true }
     },
     cookies: {
