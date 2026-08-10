@@ -48,7 +48,7 @@ const configuration = {
         openid: ['sub'],
         profile: ['username'],
         email: ['email'],
-        stream: ['stream'],
+        qlik_acess: ['streams', 'groups'],
     },
     findAccount: async(ctx, sub) => {
         const user = await getUserWithAccess(sub);
@@ -68,9 +68,19 @@ const configuration = {
                 };
             }
         };
-    }
+    },
+    features: {
+        frontchannelLogout: { enabled: true },
+        rpInitiatedLogout: { enabled: true }
+    },
+    cookies: {
+        keys: [process.env.SESSION_SECRET]
+    },
+    jwks: JSON.parse(process.env.OIDC_JWKS)
 };
 
 const oidc = new Provider(process.env.OIDC_ISSUER_URL, configuration);
+
+oidc.proxy = true;
 
 module.exports = oidc;
