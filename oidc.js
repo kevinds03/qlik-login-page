@@ -51,8 +51,15 @@ const configuration = {
         qlik_acess: ['streams', 'groups'],
     },
     findAccount: async(ctx, sub) => {
+        console.log('[findAccount] looking up sub:', sub);
+
         const user = await getUserWithAccess(sub);
-        if (!user) return undefined;
+        if (!user) { 
+            console.log('[findAccount] no matching user found for sub:', sub);
+            return undefined;
+        } 
+
+        console.log('[findAccount] user found:', JSON.stringify(user, null, 2));
 
         return {
             accountID: sub,

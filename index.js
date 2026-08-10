@@ -102,22 +102,21 @@ app.post('/interaction/:iud/login', async (req, res) => {
     const result = response.data.LoginESS_V2Result; // get API response result
 
     if (result === 'Sukses') {
-      req.session.loggedIn = true;
-      req.session.username = nik;
-      return res.redirect('/dashboard'); // change to redirect to publisher/Qlik
+      const loginResult = { login: { accountId: username } };
+      return await oidc.interactionFinished(req, res, loginResult, { mergeWithLastSubmission: false });
     } else {
       // console.log(result); // delete
       req.session.loginError = result;
-      return res.redirect('/login');
+      return res.redirect('/interaction/${interaction.uid}');
     }
 
     req.session.loginError = 'Login gagal. Mohon coba lagi.';
-    return res.redirect('/login');
+    return res.redirect('/interaction/${interaction.uid}');
 
   } catch (err) {
     console.error('Auth API error:', err.message);
     req.session.loginError = 'Authentication service is unavailable. Try again later.';
-    return res.redirect('/login');
+    return res.redirect('/interaction/${interaction.uid}');
   }
 });
 

@@ -43,14 +43,18 @@ async function getUserWithAccess(nik) {
         [user.userid]
     );
 
-    return {
-        userid: user.userid,
-        email: user.email,
-        is_admin: user.is_admin,
-        role: role.role,
-        streams: streamsResult.rows.map(r => r.stream_name),
-        groups: groupsResult.rows.map(r => r.group_name)
-    };  
+  const result = {
+    userid: user.userid,
+    username: user.username,
+    email: user.email,
+    displayName: user.display_name,
+    streams: streamsResult.rows.map(r => r.stream_name),
+    groups: groupsResult.rows.map(r => r.group_name)
+  };
+ 
+  console.log('[db] getUserWithAccess result:', JSON.stringify(result, null, 2));
+ 
+  return result;
 }
 
 module.exports = { getUserWithAccess, pool };
