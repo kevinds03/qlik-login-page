@@ -14,47 +14,56 @@ pool.on('error', (err) => {
 });
 
 async function getUserWithAccess(nik) {
-    const UserResult = await pool.query(
-        'select "userid", "is_admin", "email" from public.master_users '+
-        'where mu.nik = $1;'
-        [nik]
-    );
+    try {
+        const userResult = await pool.query(
+            'select userid, is_admin, email from public.master_users '+
+            'where nik = $1;',
+            [nik]
+        );
+        console.log('[db] master_users rows:', JSON.stringify(userResult.rows, null, 2));
 
-    if (UserResult.rows.length === 0) return null;
+        if (userResult.rows.length === 0) return null;
 
-    const user = UserResult.rows[0];
+        const user = userResult.rows[0];
 
-    const roleResult = await pool.query(
-        'select value as "role" from qlik_user_attributes '+
-        'where userid = $1 and "type" = "qlik_role";',
-        [user.userid]
-    );
-    const role = roleResult.rows[0];
+        const roleResult = await pool.query(
+            'select value as "role" from qlik_user_attributes '+
+            'where userid = $1 and "type" = $2;',
+            [user.userid, 'qlik_role']
+        );
+        const role = roleResult.rows[0]?.role || null;
+        console.log('[db] master_role rows:', JSON.stringify(roleResult.rows, null, 2));
 
-    const streamsResult = await pool.query(
-        'select value as "stream_name" from qlik_user_attributes '+
-        'where userid = $1 and "type" = "stream_access"; ',
-        [user.userid]
-    );
+        const streamsResult = await pool.query(
+            'select value as "stream_name" from qlik_user_attributes '+
+            'where userid = $1 and "type" = $2;',
+            [user.userid, 'stream_access']
+        );
+        console.log('[db] master_streams rows:', JSON.stringify(streamsResult.rows, null, 2));
 
-    const groupsResult = await pool.query(
-        'select value as "group_name" from qlik_user_attributes '+
-        'where userid = $1 and "type" = "Group";',
-        [user.userid]
-    );
+        const groupsResult = await pool.query(
+            'select value as "group_name" from qlik_user_attributes '+
+            'where userid = $1 and "type" = $2;',
+            [user.userid, 'Group']
+        );
+        console.log('[db] master_groups rows:', JSON.stringify(groupsResult.rows, null, 2));
 
-  const result = {
-    userid: user.userid,
-    username: user.username,
-    email: user.email,
-    displayName: user.display_name,
-    streams: streamsResult.rows.map(r => r.stream_name),
-    groups: groupsResult.rows.map(r => r.group_name)
-  };
- 
-  console.log('[db] getUserWithAccess result:', JSON.stringify(result, null, 2));
- 
-  return result;
+    const result = {
+        userid: user.userid,
+        is_admin: user.is_admin,
+        email: user.email,
+        role: role,
+        streams: streamsResult.rows.map(r => r.stream_name),
+        groups: groupsResult.rows.map(r => r.group_name)
+    };
+    
+    console.log('[db] getUserWithAccess result:', JSON.stringify(result, null, 2));
+    
+    return result;
+    } catch (err) {
+        console.error('[db] getUserWithAccess ERROR:', err);
+        throw err;
+    }
 }
 
 module.exports = { getUserWithAccess, pool };

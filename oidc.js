@@ -46,9 +46,9 @@ const configuration = {
     },
     claims: {
         openid: ['sub'],
-        profile: ['username'],
+        profile: ['userid', 'is_admin', 'role'],
         email: ['email'],
-        qlik_acess: ['streams', 'groups'],
+        qlik_access: ['streams', 'groups'],
     },
     findAccount: async(ctx, sub) => {
         console.log('[findAccount] looking up sub:', sub);
@@ -62,7 +62,7 @@ const configuration = {
         console.log('[findAccount] user found:', JSON.stringify(user, null, 2));
 
         return {
-            accountID: sub,
+            accountId: sub,
             async claims(use, scope) {
                 return { 
                     sub,
@@ -83,7 +83,7 @@ const configuration = {
     },
     interactions: {
         url(ctx, interaction) {
-            return '/interaction/${interaction.uid}';
+            return `/interaction/${interaction.uid}`;
         }
     },
     cookies: {

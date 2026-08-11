@@ -102,7 +102,7 @@ app.post('/interaction/:iud/login', async (req, res) => {
     const result = response.data.LoginESS_V2Result; // get API response result
 
     if (result === 'Sukses') {
-      const loginResult = { login: { accountId: username } };
+      const loginResult = { login: { accountId: nik } };
       return await oidc.interactionFinished(req, res, loginResult, { mergeWithLastSubmission: false });
     } else {
       // console.log(result); // delete
