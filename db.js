@@ -20,7 +20,7 @@ async function getUserWithAccess(nik) {
             'where nik = $1;',
             [nik]
         );
-        console.log('[db] master_users rows:', JSON.stringify(userResult.rows, null, 2));
+        // console.log('[db] master_users rows:', JSON.stringify(userResult.rows, null, 2));
 
         if (userResult.rows.length === 0) return null;
 
@@ -32,21 +32,21 @@ async function getUserWithAccess(nik) {
             [user.userid, 'qlik_role']
         );
         const role = roleResult.rows[0]?.role || null;
-        console.log('[db] master_role rows:', JSON.stringify(roleResult.rows, null, 2));
+        // console.log('[db] master_role rows:', JSON.stringify(roleResult.rows, null, 2));
 
         const streamsResult = await pool.query(
             'select value as "stream_name" from qlik_user_attributes '+
             'where userid = $1 and "type" = $2;',
             [user.userid, 'stream_access']
         );
-        console.log('[db] master_streams rows:', JSON.stringify(streamsResult.rows, null, 2));
+        // console.log('[db] master_streams rows:', JSON.stringify(streamsResult.rows, null, 2));
 
         const groupsResult = await pool.query(
             'select value as "group_name" from qlik_user_attributes '+
             'where userid = $1 and "type" = $2;',
             [user.userid, 'Group']
         );
-        console.log('[db] master_groups rows:', JSON.stringify(groupsResult.rows, null, 2));
+        // console.log('[db] master_groups rows:', JSON.stringify(groupsResult.rows, null, 2));
 
     const result = {
         userid: user.userid,
@@ -57,7 +57,7 @@ async function getUserWithAccess(nik) {
         groups: groupsResult.rows.map(r => r.group_name)
     };
     
-    console.log('[db] getUserWithAccess result:', JSON.stringify(result, null, 2));
+    // console.log('[db] getUserWithAccess result:', JSON.stringify(result, null, 2));
     
     return result;
     } catch (err) {
