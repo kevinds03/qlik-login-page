@@ -13,12 +13,14 @@ pool.on('error', (err) => {
     console.error('Unexpected PostgreSQL pool error:', err);
 });
 
-async function getUserWithAccess(nik) {
+async function getUserWithAccess(id) {
     try {
         const userResult = await pool.query(
-            'select userid, is_admin, email from public.master_users '+
-            'where nik = $1;',
-            [nik]
+            'select nik, userid, is_admin, email, '+ // for login purposes
+            'name, current_session_id, lastlogin, lastdevicename '+ // for user profile
+            'from public.master_users '+
+            'where nik::text = $1 or lower(userid::text) = $1;',
+            [id]
         );
         // console.log('[db] master_users rows:', JSON.stringify(userResult.rows, null, 2));
 
@@ -49,12 +51,16 @@ async function getUserWithAccess(nik) {
         // console.log('[db] master_groups rows:', JSON.stringify(groupsResult.rows, null, 2));
 
     const result = {
+        nik: user.nik,
         userid: user.userid,
         is_admin: user.is_admin,
         email: user.email,
         role: role,
         streams: streamsResult.rows.map(r => r.stream_name),
-        groups: groupsResult.rows.map(r => r.group_name)
+        groups: groupsResult.rows.map(r => r.group_name),
+        current_session_id: user.current_session_id,
+        lastlogin: user.lastlogin,
+        lastdevicename: user.lastdevicename
     };
     
     // console.log('[db] getUserWithAccess result:', JSON.stringify(result, null, 2));
@@ -66,11 +72,12 @@ async function getUserWithAccess(nik) {
     }
 }
 
-async function updateSessionId(nik, sessionId) {
+async function updateSessionId(id, sessionId) {
     try {
         await pool.query(
-            'update master_users set current_session_id = $1 where nik = $2',
-            [sessionId, nik]
+            'update master_users set current_session_id = $1 '+
+            'where nik::text = $2 or lower(userid::text) = $2',
+            [sessionId, id]
         );
         console.log('[db] updateSessionId: session ID updated to ', sessionId);
     } catch (err) {

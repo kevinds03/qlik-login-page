@@ -14,11 +14,11 @@
         <h2 id="header">Login</h2>
 
         <form method="POST" action="<%= typeof uid !== 'undefined' && uid ? `/interaction/${uid}/login` : '/login' %>">
-          <label class="label" for="nik">NIK</label>
+          <label class="label" for="user_id">NIK</label>
           <input
             type="text"
-            id="nik"
-            name="nik"
+            id="user_id"
+            name="user_id"
             placeholder="Nomor Induk Karyawan (NIK)"
             required
             autofocus

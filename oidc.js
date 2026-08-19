@@ -57,21 +57,23 @@ const configuration = {
         if (!user) { 
             console.log('[findAccount] no matching user found for sub:', sub);
             return undefined;
-        } 
-
-        console.log('[findAccount] user found:', JSON.stringify(user, null, 2));
+        }
 
         return {
             accountId: sub,
             async claims(use, scope) {
                 return { 
                     sub,
+                    nik: user.nik,
                     userid: user.userid,
                     email: user.email,
                     is_admin: user.is_admin,
                     role: user.role,
                     streams: user.streams,
-                    groups: user.groups
+                    groups: user.groups,
+                    current_session_id: user.current_session_id,
+                    lastlogin: user.lastlogin ? new Date(user.lastlogin).toLocaleString('id-ID') : 'No last login detected',
+                    lastdevicename: user.lastdevicename || 'Device not recognized'
                 };
             }
         };

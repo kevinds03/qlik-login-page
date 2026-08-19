@@ -55,24 +55,34 @@ app.get('/interaction/:uid', async (req, res) => {
 });
 
 app.post('/interaction/:uid/login', async (req, res) => {
-  const { nik, pass } = req.body;
+  const { user_id, pass } = req.body;
 
   let response;
   try {
+    let result;
     const details = await oidc.interactionDetails(req, res);
     const { params } = details;
 
-    response = await axios.post(
-      process.env.AUTH_API_URL,
-      { user: { nik, pass } },
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+    let cleanId = user_id.trim().includes('\\') ? user_id.trim().split('\\')[1] : user_id.trim();
+    const isNIK = /^\d{10}$/.test(cleanId);
 
-    const result = response.data.LoginESS_V2Result != 'gagal' ? response.data.LoginESS_V2Result : null; // get API response result
+    console.log('cleanID: ', cleanId);
+    console.log('isNik? ', isNIK);
 
-    if (result === 'Sukses') {
+    if (isNIK) {
+      response = await axios.post(
+        process.env.AUTH_API_URL,
+        { user: { nik: user_id, pass } },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      result = response.data.LoginESS_V2Result != 'gagal' ? response.data.LoginESS_V2Result : null; // get API response result
+    } else {
+      result = 'Bukan NIK';
+    }
+
+    if (result === 'Sukses' || result === 'Bukan NIK') {
       // Check if user exists in DB (function in db.js)
-      const dbUser = await getUserWithAccess(nik);
+      const dbUser = await getUserWithAccess(user_id.toLowerCase());
       if(!dbUser) {
         return res.render('login', {
           error: 'Akun belum terdaftar, silahkan hubungi administrator.',
@@ -80,10 +90,11 @@ app.post('/interaction/:uid/login', async (req, res) => {
           TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
         });
       }
+      console.log('[findAccount] user found:', JSON.stringify(dbUser, null, 2));
 
       // Generate Session ID untuk SAS
       const newSessionId = crypto.randomUUID();
-      await updateSessionId(nik, newSessionId);
+      await updateSessionId(user_id.toLowerCase(), newSessionId);
 
       // Auto Grant Consent & Finish Interaction
       let grant;
@@ -92,7 +103,7 @@ app.post('/interaction/:uid/login', async (req, res) => {
       } else {
         grant = new oidc.Grant({
           clientId: params.client_id,
-          accountId: nik,
+          accountId: user_id,
         });
       }
 
@@ -102,11 +113,10 @@ app.post('/interaction/:uid/login', async (req, res) => {
 
       const grantId = await grant.save();
       
-      const loginResult = { login: { accountId: nik }, consent: { grantId } };
+      const loginResult = { login: { accountId: user_id }, consent: { grantId } };
       await oidc.interactionFinished(req, res, loginResult, { mergeWithLastSubmission: false });
       return;
     }
-    const error = result ? result : 'Gagal autentikasi. NIK tidak terdaftar';
 
     return res.render('login', { error, uid: req.params.uid, TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY });
 
@@ -122,7 +132,7 @@ app.post('/interaction/:uid/login', async (req, res) => {
 
 // ------------------------- Log out ---------------------------------
 // app.get('/interaction/:uid/logout', async (req, res) => {
-//   const targetUserId = req.body.userid || req.body.userId || req.body.sub || req.body.nik;
+//   const targetUserId = req.body.userid || req.body.userId || req.body.sub || req.body.user_id;
 
 //   if (!targetUserId) {
 //     return res.status(400).json({ status: 'error', message: 'ID or NIK not found' });
