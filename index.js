@@ -1,5 +1,8 @@
 require('dotenv').config();
 
+const { getUserWithAccess } = require('./db');
+const { updateSessionId } = require('./db')
+
 const express = require('express');
 const session = require('express-session');
 const axios = require('axios');
@@ -111,7 +114,7 @@ app.post('/interaction/:uid/login', async (req, res) => {
   } catch (err) {
     console.error('Auth API error:', err.message);
     return res.render('login', {
-      error: 'Authentication service is unavailable. Try again later.',
+      error: /*err*/ 'Terjadi kesalahan pada sistem. Mohon ditunggu.',
       uid: req.params.uid,
       TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
     });
