@@ -25,16 +25,17 @@ body {
 }
 input {
   display: block;
-  margin: 10px 0;
+  margin: 1.2vh 0;
   padding: 8px;
-  width: 200px;
+  width: 21.8vw;
 }
 button {
-  padding: 8px 16px;
+  padding: 1.5vh 3vw;
   background-color: blue;
   color: white;
   border-radius: 5px;
   border: 0px;
+  margin: 1vh 7vw;
 }
 button:hover {
   cursor: pointer;

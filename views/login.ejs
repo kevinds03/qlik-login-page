@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EIS Qlik | Login</title>
-  <link rel="icon" type="image/png" href="/images/favicon.png">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" type="image/png" href="/public/images/favicon.png">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <link rel="stylesheet" href="/public/style.css">
 </head>
 <body>
   <div class="page-wrapper">
@@ -31,6 +32,10 @@
             placeholder="Password"
             required
           >
+
+          <div class="turnstile-wrapper">
+            <div class="cf-turnstile" data-sitekey="<%= TURNSTILE_SITE_KEY %>"></div>
+          </div>
 
           <button type="submit">Log In</button>
         </form> 

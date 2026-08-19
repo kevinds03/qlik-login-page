@@ -4,87 +4,48 @@ const express = require('express');
 const session = require('express-session');
 const axios = require('axios');
 const crypto = require('node:crypto');
+const helmet = require('helmet');
+const app = express();
+const path = require('path');
 
 const oidc = require('./oidc');
-// const { consoleLog } = require('@ngrok/ngrok');
-const { getUserWithAccess, updateSessionId } = require('./db');
-
-const app = express();
-
-app.set('trust proxy', true); 
-
-app.set('view engine', 'ejs');
-app.use(express.static('public'));
-app.use(express.urlencoded({ extended: true }));
-
-// app.use(session({
-//   secret: process.env.SESSION_SECRET,
-//   resave: false,
-//   saveUninitialized: false
-// }));
-
 app.use('/oidc', oidc.callback());
 
-// app.get('/', (req, res) => {
-//   res.redirect('/login');
-// });
+app.set('view engine', 'ejs');
 
-// app.post('/login', async (req, res) => {
-//   const { nik, pass } = req.body;
+app.set('trust proxy', 1);
 
-//   try {
-//     const response = await axios.post(
-//       process.env.AUTH_API_URL,
-//       { user: { nik, pass } },
-//       { headers: { 'Content-Type': 'application/json' } }
-//     );
+// KONFIGURASI KEY CLOUDFLARE TURNSTILE
+const TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY;   
+const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY;
 
-//     const result = response.data.LoginESS_V2Result; // get API response result
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-//     if (result === 'Sukses') {
-//       req.session.loggedIn = true;
-//       req.session.username = nik;
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
-//       return res.redirect('/dashboard'); // change to redirect to publisher/Qlik
-//     } else {
-//       // console.log(result); // delete
-//       req.session.loginError = result;
-//       return res.redirect('/login');
-//     }
-
-//     req.session.loginError = 'Login gagal. Mohon coba lagi.';
-//     return res.redirect('/login');
-
-//   } catch (err) {
-//     console.error('Auth API error:', err.message);
-//     req.session.loginError = 'Authentication service is unavailable. Try again later.';
-//     return res.redirect('/login');
-//   }
-// });
-
-// app.get('/login', (req, res) => {
-//   console.log('Session on GET /login:', req.session); // delete
-//   const error = req.session.loginError || null;
-//   req.session.loginError = null; // clear after showing once
-//   res.render('login', { error });
-// });
-
-// app.get('/dashboard', (req, res) => {
-//   if (!req.session.loggedIn) {
-//     return res.redirect('/login');
-//   }
-//   res.render('dashboard', { nik: req.session.nik });
-// });
-
-// app.get('/logout', (req, res) => {
-//   req.session.destroy(() => res.redirect('/login'));
-// });
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://challenges.cloudflare.com"],
+        frameSrc: ["'self'", "https://challenges.cloudflare.com"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        formAction: ["'self'", "http:", "https:"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 // --------------- OIDC interaction routes -----------------------------------------------------
+
 app.get('/interaction/:uid', async (req, res) => {
   try {
     await oidc.interactionDetails(req, res);
-    res.render('login', { error: null, uid: req.params.uid });
+    res.render('login', { error: null, uid: req.params.uid, TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY });
   } catch (err) {
     console.error('Interaction error:', err);
     res.status(400).send('Invalid or expired login session');
@@ -113,7 +74,8 @@ app.post('/interaction/:uid/login', async (req, res) => {
       if(!dbUser) {
         return res.render('login', {
           error: 'Akun belum terdaftar, silahkan hubungi administrator.',
-          uid: details.uid
+          uid: details.uid,
+          TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
         });
       }
 
@@ -144,13 +106,14 @@ app.post('/interaction/:uid/login', async (req, res) => {
     }
     const error = result ? result : 'Gagal autentikasi. NIK tidak terdaftar';
 
-    return res.render('login', { error, uid: req.params.uid });
+    return res.render('login', { error, uid: req.params.uid, TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY });
 
   } catch (err) {
     console.error('Auth API error:', err.message);
     return res.render('login', {
       error: 'Authentication service is unavailable. Try again later.',
-      uid: req.params.uid
+      uid: req.params.uid,
+      TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
     });
   }
 });
