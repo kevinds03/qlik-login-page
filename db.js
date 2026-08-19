@@ -66,4 +66,17 @@ async function getUserWithAccess(nik) {
     }
 }
 
-module.exports = { getUserWithAccess, pool };
+async function updateSessionId(nik, sessionId) {
+    try {
+        await pool.query(
+            'update master_users set current_session_id = $1 where nik = $2',
+            [sessionId, nik]
+        );
+        console.log('[db] updateSessionId: session ID updated to ', sessionId);
+    } catch (err) {
+        console.error('[db] updateSessionId ERROR:', err);
+        throw err;
+    }
+}
+
+module.exports = { getUserWithAccess, updateSessionId, pool };

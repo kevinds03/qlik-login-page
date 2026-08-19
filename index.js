@@ -3,10 +3,11 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const axios = require('axios');
+const crypto = require('node:crypto');
 
 const oidc = require('./oidc');
-const { consoleLog } = require('@ngrok/ngrok');
-const { getUserWithAccess } = require('./db');
+// const { consoleLog } = require('@ngrok/ngrok');
+const { getUserWithAccess, updateSessionId } = require('./db');
 
 const app = express();
 
@@ -16,11 +17,11 @@ app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false
-}));
+// app.use(session({
+//   secret: process.env.SESSION_SECRET,
+//   resave: false,
+//   saveUninitialized: false
+// }));
 
 app.use('/oidc', oidc.callback());
 
@@ -95,6 +96,9 @@ app.post('/interaction/:uid/login', async (req, res) => {
 
   let response;
   try {
+    const details = await oidc.interactionDetails(req, res);
+    const { params } = details;
+
     response = await axios.post(
       process.env.AUTH_API_URL,
       { user: { nik, pass } },
@@ -109,12 +113,34 @@ app.post('/interaction/:uid/login', async (req, res) => {
       if(!dbUser) {
         return res.render('login', {
           error: 'Akun belum terdaftar, silahkan hubungi administrator.',
-          uid: req.params.uid
+          uid: details.uid
         });
       }
+
+      // Generate Session ID untuk SAS
+      const newSessionId = crypto.randomUUID();
+      await updateSessionId(nik, newSessionId);
+
+      // Auto Grant Consent & Finish Interaction
+      let grant;
+      if (details.grantId) {
+        grant = await oidc.Grant.find(details.grantId);
+      } else {
+        grant = new oidc.Grant({
+          clientId: params.client_id,
+          accountId: nik,
+        });
+      }
+
+      if (params.scope) {
+        grant.addOIDCScope(params.scope);
+      }
+
+      const grantId = await grant.save();
       
-      const loginResult = { login: { accountId: nik } };
-      return await oidc.interactionFinished(req, res, loginResult, { mergeWithLastSubmission: false });
+      const loginResult = { login: { accountId: nik }, consent: { grantId } };
+      await oidc.interactionFinished(req, res, loginResult, { mergeWithLastSubmission: false });
+      return;
     }
     const error = result ? result : 'Gagal autentikasi. NIK tidak terdaftar';
 
