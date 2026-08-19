@@ -79,4 +79,18 @@ async function updateSessionId(nik, sessionId) {
     }
 }
 
-module.exports = { getUserWithAccess, updateSessionId, pool };
+async function logoutUser(id) {
+    try {
+        await pool.query(
+            'update master_users set current_session_id = NULL'+
+            'where lower(userid::text) = lower($1)'+
+            'or lower(nik::text) = lower($1)',
+            [id]
+        );
+    } catch (err) {
+      console.error('Logout failed: ', err.message);
+      throw err;
+    }
+}
+
+module.exports = { getUserWithAccess, updateSessionId, logoutUser };

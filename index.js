@@ -1,7 +1,6 @@
 require('dotenv').config();
 
-const { getUserWithAccess } = require('./db');
-const { updateSessionId } = require('./db')
+const { getUserWithAccess, updateSessionId, logoutUser } = require('./db');
 
 const express = require('express');
 const session = require('express-session');
@@ -114,12 +113,29 @@ app.post('/interaction/:uid/login', async (req, res) => {
   } catch (err) {
     console.error('Auth API error:', err.message);
     return res.render('login', {
-      error: /*err*/ 'Terjadi kesalahan pada sistem. Mohon ditunggu.',
+      error: /*err*/ 'Terjadi kesalahan pada sistem. Mohon tunggu.',
       uid: req.params.uid,
       TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
     });
   }
 });
+
+// ------------------------- Log out ---------------------------------
+// app.get('/interaction/:uid/logout', async (req, res) => {
+//   const targetUserId = req.body.userid || req.body.userId || req.body.sub || req.body.nik;
+
+//   if (!targetUserId) {
+//     return res.status(400).json({ status: 'error', message: 'ID or NIK not found' });
+//   }
+
+//   try {
+//     await logoutUser(targetUserId);
+//     return res.json({ status: 'ok', message: 'Session cleared' });
+//   } catch (err) {
+//     console.error('[logout] error:', err);
+//     return res.status(500).json({ status: 'error', message: 'Failed to clear session' });
+//   }
+// });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
