@@ -22,6 +22,24 @@ app.set('trust proxy', 1);
 const TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY;   
 const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY;
 
+// FUNCTION TO CHECK CLOUDFLARE TURNSTILE
+async function verfivyTurnstile(token, remoteIp) {
+  if (!token) return false;
+
+  try {
+    const params = new URLSearchParams();
+    params.append('secret', TURNSTILE_SECRET_KEY);
+    params.append('response', token);
+    params.append('remoteip', remoteIp);
+
+    const response = await axios.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', params);
+    return response.data && response.data.success === true;
+  } catch (err) {
+    console.error('Turnstile Verivication Error: ', err);
+    return false;
+  }
+}
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -80,11 +98,33 @@ app.get('/interaction/:uid', async (req, res) => {
 });
 
 app.post('/interaction/:uid/login', async (req, res) => {
-  const { user_id, pass } = req.body;
+  const { user_id, pass, force_login } = req.body;
+  const turnstileToken = req.body['cf-turnstile-response'];
+  const clientIp = req.ip || req.headers['x-forwarded-for'];
+  const userAgent = req.headers['user-agent'] || '';
 
   let response;
 
   try {
+    // VERIFIKASI CLOUDFLARE
+    if (force_login !== 'true') {
+      if (!turnstileToken) {
+        return res.render('login', {
+          error: 'Silakan centang verifikasi Cloudflare Turnstile terlebih dahulu.',
+          uid: req.params.uid,
+          TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
+        });
+      }
+      const isHuman = await verfivyTurnstile(turnstileToken, clientIp);
+      if (!isHuman) {
+        return res.render('login', {
+          error: 'Verifikasi keamanan Turnstile gagal / kedaluwarsa. Silakan coba lagi.',
+          uid: req.params.uid,
+          TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY       
+        });
+      }
+    }
+    
     let result;
     const details = await oidc.interactionDetails(req, res);
     const { params } = details;
