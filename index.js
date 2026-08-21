@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { getUserWithAccess, updateSessionId, logoutUser } = require('./db');
+const { getNIK, /*getCredentials,*/ getUserWithAccess, updateSessionId, logoutUser } = require('./db');
 
 const express = require('express');
 const session = require('express-session');
@@ -11,6 +11,7 @@ const app = express();
 const path = require('path');
 
 const oidc = require('./oidc');
+const { error } = require('node:console');
 app.use('/oidc', oidc.callback());
 
 app.set('view engine', 'ejs');
@@ -42,6 +43,30 @@ app.use(
   })
 );
 
+// PASSWORD DECRYPTOR
+// const SECRET_KEY = process.env.APP_SECRET_KEY;
+// function  decryptPass(hexVal, ivHex) {
+//   try {
+//     const key = Buffer.from(SECRET_KEY, 'utf8');
+//     const iv = Buffer.from(ivHex, 'hex');
+//     const encryptedText = Buffer.from(hexVal, 'hex');
+
+//     const algo = key.length === 32 ? 'aes-256-cbc' : 'aes-128-cbc';
+
+//     const decipher = crypto.createDecipheriv(algo, key, iv);
+//     let decrypted = decipher.update(encryptedText, undefined, 'utf8');
+//     decrypted += decipher.final('utf8');
+
+//     return decrypted
+//   } catch (err) {
+//     console.error('Failed to decrypt password: ', err.message);
+//     return null;
+//   }
+// }
+
+// IN-MEMORY RATE LIMITER UNTUK USERNAME NON-10 DIGIT
+// const noOfAttempts = new Map();
+
 // --------------- OIDC interaction routes -----------------------------------------------------
 
 app.get('/interaction/:uid', async (req, res) => {
@@ -58,6 +83,7 @@ app.post('/interaction/:uid/login', async (req, res) => {
   const { user_id, pass } = req.body;
 
   let response;
+
   try {
     let result;
     const details = await oidc.interactionDetails(req, res);
@@ -69,27 +95,103 @@ app.post('/interaction/:uid/login', async (req, res) => {
     console.log('cleanID: ', cleanId);
     console.log('isNik? ', isNIK);
 
-    if (isNIK) {
-      response = await axios.post(
-        process.env.AUTH_API_URL,
-        { user: { nik: user_id, pass } },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-      result = response.data.LoginESS_V2Result != 'gagal' ? response.data.LoginESS_V2Result : null; // get API response result
-    } else {
-      result = 'Bukan NIK';
-    }
+    let isAuthValid = false;
+    // GET NIK -- IF USER INPUT ID THEN GET NIK FROM QUERY
+    let nik = isNIK ? user_id : await getNIK(cleanId);
+    if (!nik) return res.render('login', {
+      error: 'Username tidak terdaftar!',
+      uid: req.params.uid,
+      TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
+    });
 
-    if (result === 'Sukses' || result === 'Bukan NIK') {
+    // LOGIN USING API ()
+    response = await axios.post(
+      process.env.AUTH_API_URL,
+      { user: { nik, pass } },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    isAuthValid = response.data.LoginESS_V2Result === 'Sukses';
+    console.log(`User ${nik} is logged in: ${isAuthValid}`);
+
+    // LOGIN USER ID -- uncomment if used
+    // const now = Date.now();
+    // let record = noOfAttempts.get(key) || { failedCount: 0, lockoutUntil: 0 };
+    // console.log(key);
+
+    // if (record.noOfAttempts > 0 && now >= record.lockoutUntil) {
+    //   record.failedCount = 0;
+    //   record.lockoutUntil = 0;
+    //   noOfAttempts.delete(key.nik);
+    //   console.log('Reset counter & timer');
+    // }
+
+    // if (now < record.lockoutUntil) {
+    //   const remainingMs = record.lockoutUntil - now;
+    //   const remainingMins = Math.ceil(remainingMs / 60000);
+    //   console.log('Time remaining: ', remainingMins);
+    // }
+
+    // // AUTHENTICATION NIK
+    // if (isNIK) {
+    //   response = await axios.post(
+    //     process.env.AUTH_API_URL,
+    //     { user: { nik: user_id, pass } },
+    //     { headers: { 'Content-Type': 'application/json' } }
+    //   );
+
+    //   result = response.data.LoginESS_V2Result != 'gagal' ? response.data.LoginESS_V2Result : null; // get API response result
+    //   console.log(response.data.LoginESS_V2Result);
+
+    //   isAuthValid = result === "Sukses" ? true : false;
+    // } else {
+    //   // AUTHENTICATION USER ID
+    //   const dbCredentials = await getCredentials(cleanId);
+    //   if (dbCredentials.password && dbCredentials.iv) {
+    //     const decryptedPass = decryptPass(dbCredentials.password, dbCredentials.iv);
+    //     if (decryptedPass && pass === decryptedPass) isAuthValid = true;
+    //   }
+
+    //   if (!isAuthValid && key) {
+    //     // MAKE THE COUNTER FOR NIK AND ID THE SAME
+    //     response = await axios.post(
+    //       process.env.AUTH_API_URL,
+    //       { user: { nik: key, pass: '' } },
+    //       { headers: { 'Content-Type': 'application/json' } }
+    //     );
+    //   }
+    // }
+
+    // if (!isAuthValid) {
+    //   record.failedCount += 1;
+    //   let errMsg = '';
+    //   if (record.failedCount === 1) 
+    //       errMsg = 'Username / password tidak sesuai (1/3).';
+    //   else if (record.failedCount === 2)
+    //       errMsg = 'Username / password tidak sesuai (2/3). Bila sekali lagi tidak berhasil, anda harus menunggu 15 menit untuk dapat login kembali!';
+    //   else {
+    //     record.failedCount = 3;
+    //     if (!record.lockoutUntil) record.lockoutUntil = now + (15 * 60000);
+    //     const remainingMs = record.lockoutUntil - now;
+    //     const remainingMins = Math.ceil(remainingMs / 60000);
+    //     errMsg = `Username / password tidak sesuai (3/3). Mohon menunggu ${remainingMins} menit untuk dapat mencoba login kembali.`;
+    //   }
+
+    //   noOfAttempts.set(key.nik, record);
+    //   return res.render('login', { error: errMsg, uid: details.uid, TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY });
+    // }
+    // noOfAttempts.delete(key.nik);
+
+    if (isAuthValid) {
       // Check if user exists in DB (function in db.js)
       const dbUser = await getUserWithAccess(user_id.toLowerCase());
-      if(!dbUser) {
-        return res.render('login', {
-          error: 'Akun belum terdaftar, silahkan hubungi administrator.',
-          uid: details.uid,
-          TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
-        });
-      }
+      // if(!dbUser) {
+      //   return res.render('login', {
+      //     error: 'Akun belum terdaftar, silahkan hubungi administrator.',
+      //     uid: details.uid,
+      //     TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
+      //   });
+      // }
       console.log('[findAccount] user found:', JSON.stringify(dbUser, null, 2));
 
       // Generate Session ID untuk SAS
@@ -118,7 +220,7 @@ app.post('/interaction/:uid/login', async (req, res) => {
       return;
     }
 
-    return res.render('login', { error, uid: req.params.uid, TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY });
+    return res.render('login', { error: response.data.LoginESS_V2Result, uid: req.params.uid, TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY });
 
   } catch (err) {
     console.error('Auth API error:', err.message);

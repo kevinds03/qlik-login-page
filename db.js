@@ -13,6 +13,43 @@ pool.on('error', (err) => {
     console.error('Unexpected PostgreSQL pool error:', err);
 });
 
+async function getNIK(id) {
+    try {
+        const res = await pool.query(
+            'select nik from public.master_users where lower(userid) = lower($1);',
+            [id]
+        );
+
+        if (res.rows.length === 0) return null;
+
+        const user = res.rows[0];
+        return user.nik;
+    } catch {
+        console.error('[db] getNIK error: ', err);
+        throw err;
+    }
+}
+
+// async function getCredentials(id) {
+//     try {
+//         const res = await pool.query(
+//             'select password, iv from public.master_users where lower(userid) = lower($1);',
+//             [id]
+//         );
+
+//         if (res.rows.length === 0) return null;
+        
+//         const user = res.rows[0];
+//         return {
+//             password: user.password,
+//             iv: user.iv
+//         };
+//     } catch (err) {
+//         console.error('[db] getCredentials error: ', err);
+//         throw err;
+//     }
+// }
+
 async function getUserWithAccess(id) {
     try {
         const userResult = await pool.query(
@@ -50,22 +87,22 @@ async function getUserWithAccess(id) {
         );
         // console.log('[db] master_groups rows:', JSON.stringify(groupsResult.rows, null, 2));
 
-    const result = {
-        nik: user.nik,
-        userid: user.userid,
-        is_admin: user.is_admin,
-        email: user.email,
-        role: role,
-        streams: streamsResult.rows.map(r => r.stream_name),
-        groups: groupsResult.rows.map(r => r.group_name),
-        current_session_id: user.current_session_id,
-        lastlogin: user.lastlogin,
-        lastdevicename: user.lastdevicename
-    };
-    
-    // console.log('[db] getUserWithAccess result:', JSON.stringify(result, null, 2));
-    
-    return result;
+        const result = {
+            nik: user.nik,
+            userid: user.userid,
+            is_admin: user.is_admin,
+            email: user.email,
+            role: role,
+            streams: streamsResult.rows.map(r => r.stream_name),
+            groups: groupsResult.rows.map(r => r.group_name),
+            current_session_id: user.current_session_id,
+            lastlogin: user.lastlogin,
+            lastdevicename: user.lastdevicename
+        };
+        
+        // console.log('[db] getUserWithAccess result:', JSON.stringify(result, null, 2));
+        
+        return result;
     } catch (err) {
         console.error('[db] getUserWithAccess ERROR:', err);
         throw err;
@@ -100,4 +137,4 @@ async function logoutUser(id) {
     }
 }
 
-module.exports = { getUserWithAccess, updateSessionId, logoutUser };
+module.exports = { getNIK, /*getCredentials,*/ getUserWithAccess, updateSessionId, logoutUser };
