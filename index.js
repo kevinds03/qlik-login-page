@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { getNIK, /*getCredentials,*/ getUserWithAccess, updateSessionId, logoutUser } = require('./db');
+const { getNIK, /*getCredentials,*/ getUserWithAccess, updateSessionId, /*getAllActiveSession,*/ clearUserSession, logoutUser } = require('./db');
 
 const express = require('express');
 const session = require('express-session');
@@ -9,6 +9,7 @@ const crypto = require('node:crypto');
 const helmet = require('helmet');
 const app = express();
 const path = require('path');
+const cron = require('node-cron');
 
 const oidc = require('./oidc');
 const { error } = require('node:console');
@@ -135,6 +136,18 @@ function getPending(uid) {
 function clearPending(uid) {
   pendingConfirmations.delete(uid);
 }
+
+// cron to check time out
+cron.schedule('0 * * * *' /*'* * * * *'*/, async () => {
+  try {
+    console.log('[cron] starting session expiration check...');
+    const clearedCount = await clearUserSession();
+    console.log('[cron] session cleanup complete, cleared:', clearedCount, 'sessions');
+  } catch (error) {
+    console.error('[cron] session expiration check failed:', err);
+  }
+});
+console.log('[cron] session expiration scheduler initialized (runs hourly)');
 
 
 // --------------- OIDC interaction routes -----------------------------------------------------

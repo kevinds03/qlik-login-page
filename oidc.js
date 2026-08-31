@@ -1,6 +1,6 @@
 const { Provider } = require('oidc-provider');
 
-const { getUserWithAccess } = require('./db');
+const { getUserWithAccess, getActiveSession, logoutUser } = require('./db');
 
 const configuration = {
     clients: [
@@ -59,6 +59,12 @@ const configuration = {
             return undefined;
         }
 
+        const activeSession = await getActiveSession(sub);
+        if (!activeSession) {
+            await logoutUser;
+            return undefined;
+        }
+
         return {
             accountId: sub,
             async claims(use, scope) {
@@ -96,7 +102,26 @@ const configuration = {
 
 const oidc = new Provider(process.env.OIDC_ISSUER_URL, configuration);
 
-console.log('OIDC provider constructed OK:', typeof oidc.callback); // ADD THIS
+console.log('OIDC provider constructed OK:', typeof oidc.callback);
+
+// This fires automatically when /oidc/session/end completes (RP-initiated logout)
+oidc.on('end_session.success', async (ctx) => {
+  try {
+    const accountId = ctx.oidc?.session?.accountId;
+    if (!accountId) {
+      console.log('[end_session.success] no accountId found, skipping DB logout');
+      return;
+    }
+
+    console.log('[end_session.success] clearing session for:', accountId);
+    await logoutUser(accountId);
+    console.log('[end_session.success] session cleared successfully');
+  } catch (err) {
+    console.error('[end_session.success] failed to clear session:', err);
+    // Don't throw — logout already succeeded at the OIDC level,
+    // DB cleanup failure shouldn't break the user's experience
+  }
+});
 
 oidc.proxy = true;
 

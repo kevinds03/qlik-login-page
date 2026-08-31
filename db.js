@@ -1,3 +1,4 @@
+const { consoleLog } = require('@ngrok/ngrok');
 const { Pool } = require('pg');
  
 const pool = new Pool({
@@ -113,7 +114,7 @@ async function updateSessionId(id, sessionId, currDeviceName) {
     try {
         await pool.query(
             'update master_users set current_session_id = $1, lastlogin = NOW(), lastdevicename = $2'+
-            'where nik::text = $3 or lower(userid::text) = $3',
+            'where nik::text = $3 or lower(userid::text) = $3;',
             [sessionId, currDeviceName, id]
         );
         console.log('[db] updateSessionId: session ID updated to ', sessionId);
@@ -124,18 +125,76 @@ async function updateSessionId(id, sessionId, currDeviceName) {
     }
 }
 
+// async function getAllActiveSession() {
+//     try {
+//         const result = await pool.query(
+//             'select nik, current_session_id, lastlogin from master_users '+
+//             'where current_session_id is not null;'
+//         );
+//         return result.rows;
+//     } catch (error) {
+//         console.error('Active session retrieval failed: ', err.message);
+//         throw err;
+//     }
+// }
+
+async function getActiveSession(id) {
+    try {
+        const result = await pool.query(
+            'select current_session_id from master_users where nik = $1',
+            [id]
+        ); 
+
+        if (result.rows.length === 0) return null;
+
+        res = result.rows[0];
+        return res.current_session_id;
+    } catch (error) {
+        console.error('Failed to get current session: ', err.message);
+        throw err;
+    }
+}
+
+async function clearUserSession() {
+    try {
+        const result = await pool.query(
+            'update master_users '+
+            'set current_session_id = null '+
+            ',lastlogin = NULL, lastdevicename = NULL '+
+            'where current_session_id is not null '+
+            'and (lastlogin is null or lastlogin < now() or lastlogin < now() - interval \'12 hours\');'
+        );
+        console.log('[clearExpiredSessions] cleared:', result.rowCount, 'expired sessions');
+        return result.rowCount;
+    } catch (error) {
+        console.error('Clear session failed: ', err.message);
+        throw err;
+    }
+}
+
 async function logoutUser(id) {
     try {
         await pool.query(
-            'update master_users set current_session_id = NULL'+
+            'update master_users set current_session_id = NULL '+
+            ',lastlogin = NULL, lastdevicename = NULL '+
             'where lower(userid::text) = lower($1)'+
-            'or lower(nik::text) = lower($1)',
+            'or lower(nik::text) = lower($1);',
             [id]
         );
+        console.log('[db] logoutUser cleared session for: ', id);
     } catch (err) {
-      console.error('Logout failed: ', err.message);
+      console.error('Log out failed: ', err.message);
       throw err;
     }
 }
 
-module.exports = { getNIK, /*getCredentials,*/ getUserWithAccess, updateSessionId, logoutUser };
+module.exports = { 
+    getNIK,
+    /*getCredentials,*/
+    getUserWithAccess,
+    updateSessionId,
+    /*getAllActiveSession,*/
+    getActiveSession,
+    clearUserSession,
+    logoutUser
+};
