@@ -109,14 +109,15 @@ async function getUserWithAccess(id) {
     }
 }
 
-async function updateSessionId(id, sessionId) {
+async function updateSessionId(id, sessionId, currDeviceName) {
     try {
         await pool.query(
-            'update master_users set current_session_id = $1 '+
-            'where nik::text = $2 or lower(userid::text) = $2',
-            [sessionId, id]
+            'update master_users set current_session_id = $1, lastlogin = NOW(), lastdevicename = $2'+
+            'where nik::text = $3 or lower(userid::text) = $3',
+            [sessionId, currDeviceName, id]
         );
         console.log('[db] updateSessionId: session ID updated to ', sessionId);
+        console.log('[db] Device name updated to: ', currDeviceName);
     } catch (err) {
         console.error('[db] updateSessionId ERROR:', err);
         throw err;

@@ -1,0 +1,109 @@
+    <!-- <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Qlik Sense - Konfirmasi Login</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #ffffff; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .login-card { width: 380px; background: #ffffff; padding: 20px 25px; border: 1px solid #d3d3d3; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .logo-container { margin-bottom: 12px; }
+        .logo-container img { height: 60px; width: auto; display: block; }
+        .divider { border: 0; border-top: 1px solid #d3d3d3; margin: 10px 0 15px 0; }
+        .warning-box { background-color: #fff8e1; border-left: 4px solid #ffb300; padding: 10px 12px; margin-bottom: 15px; font-size: 13px; color: #5d4037; }
+        .info-detail { font-size: 12px; color: #444; margin-bottom: 20px; line-height: 1.6; }
+        .info-detail ul { padding-left: 18px; margin: 6px 0; }
+        .action-wrapper { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+        .btn-cancel { background-color: #ffffff; border: 1px solid #8f8f8f; border-radius: 3px; padding: 6px 14px; font-size: 12px; color: #333; text-decoration: none; }
+        .btn-confirm { background-color: #0056b3; border: 1px solid #004085; border-radius: 3px; padding: 6px 14px; font-size: 12px; color: #ffffff; cursor: pointer; }
+        .btn-confirm:hover { background-color: #004085; }
+      </style>
+    </head>
+    <body>
+      <div class="login-card">
+        <link rel="icon" type="image/png" href="/public/images/favicon.png">
+        <hr class="divider" />
+        
+        <div class="warning-box">
+          <b>Sesi Aktif Terdeteksi!</b><br>
+          Akun Anda saat ini sedang digunakan di perangkat lain.
+        </div>
+
+        <div class="info-detail">
+          Detail Sesi Aktif:
+          <ul>
+            <li><b>Perangkat/Browser:</b> ${safeDevice}</li>
+            <li><b>Waktu Login:</b> ${safeLogin}</li>
+          </ul>
+          Jika Anda melanjutkan, sesi pada perangkat sebelumnya akan <b>otomatis ter-logout</b>. Apakah Anda ingin melanjutkan?
+        </div>
+
+        <form action="/interaction/<%= uid %>/login" method="POST">
+          <input type="hidden" name="nik" value="${safeNik}" />
+          <input type="hidden" name="pass" value="${safePassword}" />
+          <input type="hidden" name="force_login" value="true" />
+
+          <div class="action-wrapper">
+            <a href="/interaction/<%= uid %>" class="btn-cancel">Batal</a>
+            <button type="submit" class="btn-confirm">Ya, Lanjutkan Login</button>
+          </div>
+        </form>
+      </div>
+    </body>
+    </html> -->
+
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Qlik Sense - Konfirmasi Login</title>
+  <link rel="icon" type="image/png" href="/public/images/favicon.png">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #ffffff; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .login-card { width: 380px; background: #ffffff; padding: 20px 25px; border: 1px solid #d3d3d3; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .divider { border: 0; border-top: 1px solid #d3d3d3; margin: 10px 0 15px 0; }
+    .warning-box { background-color: #fff8e1; border-left: 4px solid #ffb300; padding: 10px 12px; margin-bottom: 15px; font-size: 13px; color: #5d4037; }
+    .info-detail { font-size: 12px; color: #444; margin-bottom: 20px; line-height: 1.6; }
+    .info-detail ul { padding-left: 18px; margin: 6px 0; }
+    .action-wrapper { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+    .btn-cancel { background-color: #ffffff; border: 1px solid #8f8f8f; border-radius: 3px; padding: 6px 14px; font-size: 12px; color: #333; text-decoration: none; }
+    .btn-confirm { background-color: #0056b3; border: 1px solid #004085; border-radius: 3px; padding: 6px 14px; font-size: 12px; color: #ffffff; cursor: pointer; }
+    .btn-confirm:hover { background-color: #004085; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <hr class="divider" />
+
+    <div class="warning-box">
+      <b>Sesi Aktif Terdeteksi!</b><br>
+      Akun Anda saat ini sedang digunakan di perangkat lain.
+    </div>
+
+    <div class="info-detail">
+      Detail Sesi Aktif:
+      <ul>
+        <li><b>Perangkat/Browser:</b> <%= device %></li>
+        <li><b>Waktu Login:</b> <%= loginAt %></li>
+      </ul>
+      Jika Anda melanjutkan, sesi pada perangkat sebelumnya akan <b>otomatis ter-logout</b>. Apakah Anda ingin melanjutkan?
+    </div>
+
+    <!--
+      No password (or even NIK) travels through this form. The credential
+      check already happened on the previous submit — this form only carries
+      the interaction uid, which the server uses to look up the short-lived
+      "verified" marker stored server-side.
+    -->
+    <form action="/interaction/<%= uid %>/login/confirm" method="POST">
+      <div class="action-wrapper">
+        <a href="/interaction/<%= uid %>" class="btn-cancel">Batal</a>
+        <button type="submit" class="btn-confirm">Ya, Lanjutkan Login</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

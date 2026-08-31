@@ -85,11 +85,64 @@ app.use(
 // IN-MEMORY RATE LIMITER UNTUK USERNAME NON-10 DIGIT
 // const noOfAttempts = new Map();
 
+// Helper XSS Encoding
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Helper Parser Nama Perangkat & Browser dari User-Agent
+function parseUserAgent (userAgent) {
+  let browser = 'Browser';
+  let os = 'OS';
+
+  if (!userAgent) return 'Perangkat tidak diketahui';
+  if (userAgentString.includes('Chrome')) browser = 'Google Chrome';
+  else if (userAgentString.includes('Safari')) browser = 'Safari';
+  else if (userAgentString.includes('Firefox')) browser = 'Mozilla Firefox';
+  else if (userAgentString.includes('Edg')) browser = 'Microsoft Edge';
+
+  if (userAgentString.includes('Windows')) os = 'Windows PC';
+  else if (userAgentString.includes('Macintosh')) os = 'Mac OS';
+  else if (userAgentString.includes('Android')) os = 'Android Device';
+  else if (userAgentString.includes('iPhone') || userAgentString.includes('iPad')) os = 'iOS Device';
+  else if (userAgentString.includes('Linux')) os = 'Linux';
+
+  return `${browser} on ${os}`;
+}
+
+// GET PENDING FOR CONFIRMATION
+const pendingConfirmations = new Map();
+const PENDING_TTL_MS = 2 * 60 * 1000;
+
+function setPending(uid, nik) {
+  pendingConfirmations.set(uid, { nik, expiresAt: Date.now() + PENDING_TTL_MS });
+}
+function getPending(uid) {
+  const entry = pendingConfirmations.get(uid);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    pendingConfirmations.delete(uid);
+    return null;
+  }
+  return entry;
+}
+function clearPending(uid) {
+  pendingConfirmations.delete(uid);
+}
+
+
 // --------------- OIDC interaction routes -----------------------------------------------------
 
 app.get('/interaction/:uid', async (req, res) => {
   try {
     await oidc.interactionDetails(req, res);
+    if (res.headersSent) return;
     res.render('login', { error: null, uid: req.params.uid, TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY });
   } catch (err) {
     console.error('Interaction error:', err);
@@ -109,6 +162,7 @@ app.post('/interaction/:uid/login', async (req, res) => {
     // VERIFIKASI CLOUDFLARE
     if (force_login !== 'true') {
       if (!turnstileToken) {
+        if (res.headersSent) return;
         return res.render('login', {
           error: 'Silakan centang verifikasi Cloudflare Turnstile terlebih dahulu.',
           uid: req.params.uid,
@@ -117,6 +171,7 @@ app.post('/interaction/:uid/login', async (req, res) => {
       }
       const isHuman = await verfivyTurnstile(turnstileToken, clientIp);
       if (!isHuman) {
+        if (res.headersSent) return;
         return res.render('login', {
           error: 'Verifikasi keamanan Turnstile gagal / kedaluwarsa. Silakan coba lagi.',
           uid: req.params.uid,
@@ -138,11 +193,15 @@ app.post('/interaction/:uid/login', async (req, res) => {
     let isAuthValid = false;
     // GET NIK -- IF USER INPUT ID THEN GET NIK FROM QUERY
     let nik = isNIK ? user_id : await getNIK(cleanId);
-    if (!nik) return res.render('login', {
-      error: 'Username tidak terdaftar!',
-      uid: req.params.uid,
-      TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
-    });
+    nik = String(nik);
+    if (!nik) {
+        if (res.headersSent) return;
+        return res.render('login', {
+        error: 'Username tidak terdaftar!',
+        uid: req.params.uid,
+        TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
+      });
+    }
 
     // LOGIN USING API ()
     response = await axios.post(
@@ -222,9 +281,10 @@ app.post('/interaction/:uid/login', async (req, res) => {
     // }
     // noOfAttempts.delete(key.nik);
 
+    let dbUser;
     if (isAuthValid) {
       // Check if user exists in DB (function in db.js)
-      const dbUser = await getUserWithAccess(user_id.toLowerCase());
+      dbUser = await getUserWithAccess(user_id.toLowerCase());
       // if(!dbUser) {
       //   return res.render('login', {
       //     error: 'Akun belum terdaftar, silahkan hubungi administrator.',
@@ -234,43 +294,116 @@ app.post('/interaction/:uid/login', async (req, res) => {
       // }
       console.log('[findAccount] user found:', JSON.stringify(dbUser, null, 2));
 
-      // Generate Session ID untuk SAS
-      const newSessionId = crypto.randomUUID();
-      await updateSessionId(user_id.toLowerCase(), newSessionId);
-
-      // Auto Grant Consent & Finish Interaction
-      let grant;
-      if (details.grantId) {
-        grant = await oidc.Grant.find(details.grantId);
-      } else {
-        grant = new oidc.Grant({
-          clientId: params.client_id,
-          accountId: user_id,
+      // CEK CURRENT LOGIN
+      if (dbUser.current_session_id && force_login !== 'true') {
+        setPending(req.params.uid, nik);
+        return res.render('confirm-session', {
+          uid: details.uid,
+          device: escapeHtml(dbUser.lastdevicename) || '(Perangkat tidak diketahui)',
+          loginAt: escapeHtml(dbUser.lastlogin) || '(Waktu login tidak diketahui)'
         });
       }
 
-      if (params.scope) {
-        grant.addOIDCScope(params.scope);
-      }
-
-      const grantId = await grant.save();
-      
-      const loginResult = { login: { accountId: user_id }, consent: { grantId } };
-      await oidc.interactionFinished(req, res, loginResult, { mergeWithLastSubmission: false });
-      return;
+      return await finishLogin({ req, res, nik, details, params })
     }
 
+    if (res.headersSent) return;
     return res.render('login', { error: response.data.LoginESS_V2Result, uid: req.params.uid, TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY });
 
   } catch (err) {
     console.error('Auth API error:', err.message);
+    if (res.headersSent) return;
     return res.render('login', {
-      error: /*err*/ 'Terjadi kesalahan pada sistem. Mohon tunggu.',
+      error: err /*'Terjadi kesalahan pada sistem. Mohon tunggu.'*/,
       uid: req.params.uid,
       TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY
     });
   }
 });
+
+app.post('/interaction/:uid/login/confirm', async (req, res) => {
+  const uid = req.params.uid;
+ 
+  try {
+    const pending = getPending(uid);
+    if (!pending) {
+      if (res.headersSent) return;
+      return res.status(400).render('login', {
+        error: 'Sesi konfirmasi telah kedaluwarsa. Silakan login kembali.',
+        uid,
+        TURNSTILE_SITE_KEY
+      });
+    }
+ 
+    const details = await oidc.interactionDetails(req, res);
+    const { params } = details;
+ 
+    // const dbUser = await getUserWithAccess(pending.nik);
+    // if (!dbUser) {
+    //   clearPending(uid);
+    //   return res.render('login', {
+    //     error: 'Akun belum terdaftar, silahkan hubungi administrator.',
+    //     uid,
+    //     TURNSTILE_SITE_KEY
+    //   });
+    // }
+ 
+    clearPending(uid);
+    return await finishLogin({ req, res, nik: pending.nik, details, params });
+ 
+  } catch (err) {
+    console.error('Confirm login error:', err);
+    clearPending(uid);
+    if (res.headersSent) return;
+    return res.render('login', {
+      error: 'Authentication service is unavailable. Try again later.',
+      uid,
+      TURNSTILE_SITE_KEY
+    });
+  }
+});
+
+async function finishLogin({ req, res, nik, details, params }) {
+  console.log('[finishLogin] starting with nik:', nik);
+  
+  const newSessionId = crypto.randomUUID();
+  const currDeviceName = req.headers['user-agent'] || '(tidak diketahui)';
+  
+  console.log('[finishLogin] calling updateSessionId with:', { nik, newSessionId, currDeviceName });
+  await updateSessionId(nik, newSessionId, currDeviceName);
+  console.log('[finishLogin] updateSessionId completed');
+
+  let grant;
+  if (details.grantId) {
+    console.log('[finishLogin] using existing grantId:', details.grantId);
+    grant = await oidc.Grant.find(details.grantId);
+  } else {
+    console.log('[finishLogin] creating new grant for accountId:', nik);
+    grant = new oidc.Grant({
+      clientId: params.client_id,
+      accountId: nik,
+    });
+  }
+
+  if (params.scope) {
+    grant.addOIDCScope(params.scope);
+  }
+
+  console.log('[finishLogin] calling grant.save()');
+  const grantId = await grant.save();
+  console.log('[finishLogin] grant saved, grantId:', grantId);
+
+  const loginResult = { login: { accountId: nik }, consent: { grantId } };
+  console.log('[finishLogin] calling interactionFinished with:', loginResult);
+  try {
+    await oidc.interactionFinished(req, res, loginResult, { mergeWithLastSubmission: false });
+    console.log('[finishLogin] interactionFinished completed (should have redirected)');
+  } catch (err) {
+    console.error('[finishLogin] ERROR in interactionFinished:', err);
+    console.error('[finishLogin] ERROR stack:', err.stack);
+    throw err;
+  }
+}
 
 // ------------------------- Log out ---------------------------------
 // app.get('/interaction/:uid/logout', async (req, res) => {
